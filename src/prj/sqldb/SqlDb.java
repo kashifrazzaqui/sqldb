@@ -104,6 +104,7 @@ public class SqlDb
             {
                 final Cursor cursor = _db.rawQuery(sql, selectionArgs);
                 final RESULT result = handler.handle(cursor);
+                closeCursor(cursor);
                 l.set(result);
                 _appExecutor.submit(new Runnable()
                 {
@@ -138,6 +139,7 @@ public class SqlDb
                 Cursor c = _db.query(table, columns, selection, selectionArgs,
                         groupBy, having, orderBy, limit);
                 final RESULT result = handler.handle(c);
+                closeCursor(c);
                 l.set(result);
                 Runnable rr = new Runnable()
                 {
@@ -377,6 +379,14 @@ public class SqlDb
                     cb.onComplete(b);
                 }
             });
+        }
+    }
+
+    private void closeCursor(Cursor cursor)
+    {
+        if (!cursor.isClosed())
+        {
+            cursor.close();
         }
     }
 
