@@ -1,7 +1,7 @@
 sqldb
 =====
 
-SqlDb provides a wrapper that hides thread and connection management for android SQLite databases - it is not an ORM. 
+SqlDb is a wrapper that hides thread and connection management for android SQLite databases and provides both a sync and async api - it is not an ORM. 
 
 To use SqlDb, construct it by providing 
 
@@ -69,3 +69,6 @@ f.get() //This blocks the current thread till SqlDb finishes processing and has 
 There are also methods that allow the execution of 'rawQuery' and the usage of transactions.
 
 PS: Please file github issues, for bugs/features/suggestions and pull requests are welcome.
+
+
+[![githalytics.com alpha](https://cruel-carlota.pagodabox.com/bf60f0d436365b6217d1014f3844e199 "githalytics.com")](http://githalytics.com/kashifrazzaqui/sqldb)
