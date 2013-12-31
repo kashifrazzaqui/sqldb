@@ -171,10 +171,11 @@ public class SqlDb
     public <RESULT> Future<RESULT> query(final String table,
                                          final String[] columns,
                                          final String selection,
-                                         final String[] selectionArgs)
+                                         final String[] selectionArgs,
+                                         final CursorHandler<RESULT> handler)
     {
         return query(table, columns, selection, selectionArgs, null, null,
-                null, null);
+                null, handler);
     }
 
     /*
