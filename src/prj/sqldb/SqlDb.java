@@ -237,10 +237,16 @@ public class SqlDb
             @Override
             public void run()
             {
-                int numRows = _db.delete(table, whereClause, whereArgs);
-                l.set(numRows);
-                executeCallbackInAppExecutor(cb, numRows);
-
+                try
+                {
+                    int numRows = _db.delete(table, whereClause, whereArgs);
+                    l.set(numRows);
+                    callbackInAppExecutor(cb, numRows);
+                }
+                catch (Exception e)
+                {
+                    errorbackInAppExecutor(cb, e);
+                }
             }
         };
         ScheduledFuture<?> f = SqlDBThreads.scheduleOnWriterDBExecutor(r);
@@ -260,10 +266,17 @@ public class SqlDb
             @Override
             public void run()
             {
-                long id = _db.insertWithOnConflict(table, nullColumnHack,
-                        initialValues, conflictAlgorithm);
-                l.set(id);
-                executeCallbackInAppExecutor(cb, id);
+                try
+                {
+                    long id = _db.insertWithOnConflict(table, nullColumnHack,
+                            initialValues, conflictAlgorithm);
+                    l.set(id);
+                    callbackInAppExecutor(cb, id);
+                }
+                catch (Exception e)
+                {
+                    errorbackInAppExecutor(cb, e);
+                }
             }
         };
         ScheduledFuture<?> f = SqlDBThreads.scheduleOnWriterDBExecutor(r);
@@ -291,10 +304,17 @@ public class SqlDb
             @Override
             public void run()
             {
-                int numRows = _db.updateWithOnConflict(table, values,
-                        whereClause, whereArgs, conflictAlgorithm);
-                l.set(numRows);
-                executeCallbackInAppExecutor(cb, numRows);
+                try
+                {
+                    int numRows = _db.updateWithOnConflict(table, values,
+                            whereClause, whereArgs, conflictAlgorithm);
+                    l.set(numRows);
+                    callbackInAppExecutor(cb, numRows);
+                }
+                catch (Exception e)
+                {
+                    errorbackInAppExecutor(cb, e);
+                }
             }
         };
         ScheduledFuture<?> f = SqlDBThreads.scheduleOnWriterDBExecutor(r);
@@ -321,9 +341,16 @@ public class SqlDb
             @Override
             public void run()
             {
-                long id = _db.replace(table, nullColumnHack, initialValues);
-                l.set(id);
-                executeCallbackInAppExecutor(cb, id);
+                try
+                {
+                    long id = _db.replace(table, nullColumnHack, initialValues);
+                    l.set(id);
+                    callbackInAppExecutor(cb, id);
+                }
+                catch (Exception e)
+                {
+                    errorbackInAppExecutor(cb, e);
+                }
             }
         };
         ScheduledFuture<?> f = SqlDBThreads.scheduleOnWriterDBExecutor(r);
@@ -409,7 +436,7 @@ public class SqlDb
                 }, params);
     }
 
-    private void executeCallbackInAppExecutor(final DBCallback cb, final long arg)
+    private void callbackInAppExecutor(final DBCallback cb, final long arg)
     {
         if (cb != null)
         {
@@ -424,6 +451,23 @@ public class SqlDb
             _appExecutor.submit((r));
         }
     }
+
+    private void errorbackInAppExecutor(final DBCallback cb, final Exception e)
+    {
+        if (cb != null)
+        {
+            Runnable r = new Runnable()
+            {
+                @Override
+                public void run()
+                {
+                    cb.onError(e);
+                }
+            };
+            _appExecutor.submit(r);
+        }
+    }
+
 
     private void fireCompletionCallback(final ITransactionCompleteCallback
                                                 cb, final boolean b)

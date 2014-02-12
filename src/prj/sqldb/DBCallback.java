@@ -1,6 +1,8 @@
 package prj.sqldb;
 
-public interface DBCallback
+public abstract class DBCallback
 {
-    void exec(long l); //long 'l' is the number of rows affected.
+    abstract public void exec(long l); //long 'l' is the number of rows affected.
+
+    public void onError(Exception e) {}
 }
