@@ -53,6 +53,12 @@ DBCallback callback = new DBCallback()
   {
     //'l' indicates the number of rows affected by this operation.
   }
+
+  @Override
+  void onError(Exception e)
+  {
+    //called with an exception if one occurs while executing
+  }
 };
 
 db.replace("fruits", null, initialValues, callback);
@@ -66,7 +72,7 @@ f.get() //This blocks the current thread till SqlDb finishes processing and has 
 
 ```
 
-There are also methods that allow the execution of 'rawQuery' and the usage of transactions.
+There are also methods that allow the execution of 'rawQuery',  'batchQuery' and the usage of transactions.
 
 PS: Please file github issues, for bugs/features/suggestions and pull requests are welcome.
 
