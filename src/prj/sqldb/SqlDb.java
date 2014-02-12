@@ -8,6 +8,8 @@ import android.os.Build;
 import prj.sqldb.threading.Later;
 import prj.sqldb.threading.SqlDBThreads;
 
+import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledFuture;
@@ -76,6 +78,11 @@ public class SqlDb
         void onComplete(boolean b);
     }
 
+    public interface IQueryProcessor
+    {
+        public Cursor process(QueryParams queryParam);
+    }
+
     /*
     Query methods: These methods provide access to a cursor via the
     CursorHandler. The execution of the cursor is done
@@ -120,6 +127,36 @@ public class SqlDb
         return l;
     }
 
+    public <RESULT> Future<RESULT> batchQuery(final MultipleCursorHandler<RESULT> bcc,
+                                              final List<QueryParams> params)
+    {
+        //For running a bunch of queries that return results  of the same type
+
+        final Later<RESULT> l = new Later<RESULT>();
+        Runnable r = new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                Iterator<QueryResult> iter = makeSequentialCursorProcessor(params);
+                final RESULT results = bcc.convert(iter);
+                l.set(results);
+                Runnable rr = new Runnable()
+                {
+                    @Override
+                    public void run()
+                    {
+                        bcc.callback(results);
+                    }
+                };
+                _appExecutor.submit(rr);
+            }
+        };
+        ScheduledFuture<?> f = SqlDBThreads.scheduleOnReaderDBExecutor(r);
+        l.wrap(f);
+        return l;
+    }
+
     public <RESULT> Future<RESULT> query(final String table,
                                          final String[] columns,
                                          final String selection,
@@ -136,8 +173,7 @@ public class SqlDb
             @Override
             public void run()
             {
-                Cursor c = _db.query(table, columns, selection, selectionArgs,
-                        groupBy, having, orderBy, limit);
+                Cursor c = syncQuery(table, columns, selection, selectionArgs, groupBy, having, orderBy, limit);
                 final RESULT result = handler.handle(c);
                 closeCursor(c);
                 l.set(result);
@@ -349,6 +385,29 @@ public class SqlDb
     }
 
     /* PRIVATES */
+
+
+    private Cursor syncQuery(String table, String[] columns, String selection, String[] selectionArgs, String groupBy, String having, String orderBy, String limit)
+    {
+        return _db.query(table, columns, selection, selectionArgs,
+                groupBy, having, orderBy, limit);
+    }
+
+    private Iterator<QueryResult> makeSequentialCursorProcessor(List<QueryParams> params)
+    {
+        return new SequentialCursorProcessor
+                (new IQueryProcessor()
+                {
+                    @Override
+                    public Cursor process(QueryParams p)
+                    {
+                        return _db.query(p.getTable(), p.getColumns(),
+                                p.getSelection(), p.getSelectionArgs(),
+                                p.getGroupBy(), p.getHaving(),
+                                p.getOrderBy(), p.getLimit());
+                    }
+                }, params);
+    }
 
     private void executeCallbackInAppExecutor(final DBCallback cb, final long arg)
     {
