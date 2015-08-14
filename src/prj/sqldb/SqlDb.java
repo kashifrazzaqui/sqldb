@@ -5,8 +5,6 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.os.Build;
-import prj.sqldb.threading.Later;
-import prj.sqldb.threading.SqlDBThreads;
 
 import java.util.Iterator;
 import java.util.List;
@@ -14,58 +12,68 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledFuture;
 
+import prj.sqldb.threading.Later;
+import prj.sqldb.threading.SqlDBThreads;
+
+
+/**
+ * Sqldb provides an async api to execute queries on the android SQLite
+ * database.
+ * Uses one thread for writing to DB as sqlite only supports one writer.
+ * Uses one thread for reading from DB. This is sufficient for most usecases
+ * by a margin.
+ * <p/>
+ * All methods return a future instead of 'void' in order to allow the
+ * application thread to wait till
+ * there is a result, if the application so desires.
+ * <p/>
+ * TODO: offer support for multiple readers from db.
+ */
 public class SqlDb
 {
-    /*
-    Sqldb provides an async api to execute queries on the android SQLite
-    database.
-    Uses one thread for writing to DB as sqlite only supports one writer.
-    Uses one thread for reading from DB. This is sufficient for most usecases
-     by a margin.
-
-    All methods return a future instead of 'void' in order to allow the
-    application thread to wait till
-    there is a result, if the application so desires.
-
-    TODO: offer support for multiple readers from db.
-     */
-
     private final SQLiteDatabase _db; //Underlying sqlite database
+    private final ExecutorService _appExecutor; //An executor which provides thread on which results from queries will be returned
 
-    //An executor which provides thread on which results from queries will be
-    // returned
-    private final ExecutorService _appExecutor;
-
-    public SqlDb(SQLiteOpenHelper helper, ExecutorService appExecutor,
-                 boolean disableSync)
+    public SqlDb(SQLiteOpenHelper helper, ExecutorService appExecutor)
     {
-        _db = helper.getWritableDatabase(); //Writable database handles both
-        // reads and writes
+        _db = helper.getWritableDatabase(); //Writable database handles both reads and writes
+        _db.execSQL("PRAGMA synchronous=0");
 
-        if (disableSync)
-        {
-            /*
-            Sync pragma in sqlite forces each write to be commited to disk
-            before returning, this can
-            be very slow and is not typically required by most applications.
-            Setting disable sync to 'true'
-            disables this and speeds up dbwrites significantly.
-            More information -http://www.sqlite.org/pragma
-            .html#pragma_synchronous
-            */
-            _db.execSQL("PRAGMA synchronous=0");
-        }
-        if (Build.VERSION.SDK_INT >= 11)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB)
         {
             /*
             Write ahead logging is available from android api 11 and higher
-            and significantly speeds up database
-            operations.
+            and significantly speeds up database operations.
             More info - http://www.sqlite.org/draft/wal.html
-             */
+            */
             _db.enableWriteAheadLogging();
         }
+
         _appExecutor = appExecutor;
+    }
+
+    /**
+     * Sets the current disk synchronization mode which controls how aggressively
+     * SQLite will write data to physical storage.
+     *
+     * @param mode EITHER 1 OR 2
+     *              <br><br>
+     *              1 - NORMAL MODE, syncs after each sequence of critical disk operations
+     *              <br>
+     *              2 - FULL MODE, syncs after each critical disk operation
+     */
+    public void enableSync(int mode)
+    {
+        if (mode == 1)
+        {
+            _db.execSQL("PRAGMA synchronous=1");
+        } else if (mode == 2)
+        {
+            _db.execSQL("PRAGMA synchronous=2");
+        } else
+        {
+            throw new IllegalArgumentException("Invalid synchronous pragma value " + mode);
+        }
     }
 
     public interface ITransactionCompleteCallback
